@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Conflict Analysis</title>
+    <meta property="og:title" content="Global Conflict Analysis Dashboard">
+    <meta property="og:description" content="An interactive data visualization tracking the longevity, human casualties, and financial costs of active global conflicts.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://via.placeholder.com/1200x630.png?text=Global+Conflict+Data">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+        // Load the Google GeoChart package immediately
+        google.charts.load('current', {
+            'packages':['geochart']
+        });
+    </script>
+    <style>
+        :root {
+            --bg-color: #0d0d0d;
+            --panel-bg: #1a1a1a;
+            --text-main: #e0e0e0;
+            --text-muted: #888888;
+            --accent: #5c2b2b;
+            --accent-hover: #7a3a3a;
+            --border-color: #333333;
+            --link-color: #4e79a7;
+            --export-btn: #4e79a7;
+            --export-hover: #3b5c7f;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100%;
+        }
+
+        /* Landing Page Styles */
+        #landing-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .intro-text {
+            max-width: 700px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+
+        button {
+            background-color: var(--accent);
+            color: var(--text-main);
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-export {
+            background-color: var(--export-btn);
+            margin-right: 10px;
+        }
+
+        .btn-export:hover {
+            background-color: var(--export-hover);
+        }
+
+        /* Dashboard Styles */
+        #dashboard {
+            display: none;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        select {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .visualization-container {
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 6px;
+            min-height: 500px;
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        /* Table & Tooltip Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #222;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        tr:hover {
+            background-color: #2a2a2a;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            border-bottom: 1px dotted var(--text-muted);
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 280px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 6px;
+            padding: 12px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -140px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.5);
+            font-size: 0.85rem;
+            line-height: 1.4;
+            font-weight: normal;
+        }
+
+        .tooltip .tooltiptext::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        #chart-container, #map-container {
+            width: 100%;
+            height: 600px;
+        }
+
+        /* References Section */
+        .references-section {
+            background-color: var(--panel-bg);
+            padding: 30px;
+            border-radius: 6px;
+            border-top: 3px solid var(--border-color);
+        }
+
+        .references-section h3 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: #fff;
+        }
+
+        .references-section p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .references-section ul {
+            list-style-type: square;
+            color: var(--text-muted);
+            padding-left: 20px;
+        }
+
+        .references-section li {
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .references-section a {
+            color: var(--link-color);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .references-section a:hover {
+            color: #6a9bd8;
+            text-decoration: underline;
+        }
+
+        .disclaimer {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(92, 43, 43, 0.1);
+            border-left: 3px solid var(--accent);
+            font-style: italic;
+            font-size: 0.9rem !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="landing-page">
+        <h1>Global Conflict Data</h1>
+        <p class="intro-text">
+            The following interactive document provides a quantitative overview of active global conflicts as of 3/10/2026 @ 1PM PT. 
+            By examining the longevity, human casualties, and financial expenditures associated with these events, 
+            this tool allows users to cross-reference data points—including regional impact and defense spending as a percentage of national GDP—to better grasp the scale of ongoing global instability. ~X. Arthur
+        </p>
+        <button onclick="enterDashboard()">View Data Dashboard</button>
+    </div>
+
+    <div id="dashboard">
+        <div class="header-nav">
+            <h2>Conflict Analysis Dashboard</h2>
+            <div class="nav-buttons">
+                <button class="btn-export" onclick="exportToCSV()">Export to CSV</button>
+                <button onclick="exitDashboard()">← Back</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="region-filter">Filter by Region:</label>
+                <select id="region-filter" onchange="updateVisualization()">
+                    <option value="All">All Regions</option>
+                    <option value="Africa">Africa</option>
+                    <option value="Asia">Asia</option>
+                    <option value="Europe">Europe</option>
+                    <option value="Latin America">Latin America</option>
+                    <option value="Middle East">Middle East</option>
+                    <option value="North America">North America</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="metric-select">Select Metric / Cross-Reference:</label>
+                <select id="metric-select" onchange="updateVisualization()">
+                    <option value="casualties">Estimated Annual Casualties</option>
+                    <option value="casualties_day">Estimated Casualties Per Day</option>
+                    <option value="money">Estimated Annual Money Spent (USD)</option>
+                    <option value="money_day">Estimated Money Spent Per Day (USD)</option>
+                    <option value="pct_gdp">Defense Spend as % of GDP</option>
+                    <option value="cost_per_life">Financial Cost per Casualty (USD)</option>
+                    <option value="longevity">Conflict Longevity (Timeline)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="visual-select">Visualization Type:</label>
+                <select id="visual-select" onchange="updateVisualization()">
+                    <option value="table">Data Table</option>
+                    <option value="bar">Bar Chart (Histogram/Timeline)</option>
+                    <option value="pie">Pie Chart</option>
+                    <option value="map">Geographic Heatmap</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="visualization-container" id="vis-container">
+            </div>
+
+        <div class="references-section">
+            <h3>Data Sources & Methodology</h3>
+            <p>The estimates provided in this dashboard are aggregated from open-source intelligence, international monitoring organizations, defense budget reports, and geopolitical databases. For independent verification and real-time tracking, please consult the following primary organizations:</p>
+            <ul>
+                <li><a href="https://acleddata.com" target="_blank">ACLED (Armed Conflict Location & Event Data Project)</a> - Primary source for fatality estimates and event tracking globally.</li>
+                <li><a href="https://www.sipri.org" target="_blank">SIPRI (Stockholm International Peace Research Institute)</a> - Global military expenditure, arms trade, and defense budget tracking.</li>
+                <li><a href="https://ucdp.uu.se" target="_blank">UCDP (Uppsala Conflict Data Program)</a> - Long-term historical conflict data and rigorous casualty metrics.</li>
+            </ul>
+            <p class="disclaimer">
+                <strong>Methodology Note:</strong> Casualty and financial figures in active conflict zones are inherently difficult to verify and are subject to revision. The "Cost Per Casualty" and "% of GDP" metrics are quantitative derivations intended to highlight vast disparities in defense spending and economic impact; they are not intended to assign a monetary value to human life.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Structured Data Array
+        const conflictData = [
+            { country: "United States", region: "North America", parties: "Iran, Houthis, Hezbollah", desc: "Speculative/projected regional conflict mapping direct engagements and proxy warfare.", start: "Feb 2026", longevityText: "2 Months", longevityYrs: 0.16, casualties: 5000, money: 200000000000, gdp: 28000000000000 },
+            { country: "Ukraine", region: "Europe", parties: "Russia", desc: "Full-scale conventional war following Russia's 2022 invasion of Ukrainian territory.", start: "Feb 2022", longevityText: "4 Years", longevityYrs: 4, casualties: 77000, money: 71000000000, gdp: 160000000000 },
+            { country: "Sudan", region: "Africa", parties: "SAF vs. RSF", desc: "Violent power struggle between the Sudanese Armed Forces and the paramilitary Rapid Support Forces.", start: "Apr 2023", longevityText: "3 Years", longevityYrs: 3, casualties: 19000, money: 13400000000, gdp: 51000000000 },
+            { country: "Palestine/Gaza", region: "Middle East", parties: "Israel vs. Hamas & PIJ", desc: "Intense urban warfare and counter-insurgency operations following the October 2023 attacks.", start: "Oct 2023", longevityText: "2.5 Years", longevityYrs: 2.5, casualties: 18000, money: 1200000000, gdp: 18000000000 },
+            { country: "Myanmar", region: "Asia", parties: "Junta vs. EROs", desc: "Multi-front civil war between the military junta and various ethnic armed organizations (EROs).", start: "Feb 2021", longevityText: "5 Years", longevityYrs: 5, casualties: 15000, money: 4100000000, gdp: 65000000000 },
+            { country: "Nigeria", region: "Africa", parties: "Govt vs. Boko Haram/ISWAP", desc: "Counter-insurgency operations against Boko Haram and Islamic State affiliates in the north.", start: "July 2009", longevityText: "17 Years", longevityYrs: 17, casualties: 12000, money: 3800000000, gdp: 477000000000 },
+            { country: "Somalia", region: "Africa", parties: "Govt vs. Al-Shabaab", desc: "Decades-long fight by the central government against the Al-Shabaab militant group.", start: "Jan 1991", longevityText: "35 Years", longevityYrs: 35, casualties: 9500, money: 1500000000, gdp: 8000000000 },
+            { country: "Syria", region: "Middle East", parties: "Govt vs. HTS/Kurdish/ISIS", desc: "Complex civil war involving the Assad government, Kurdish forces, and rebel/jihadist factions.", start: "Mar 2011", longevityText: "15 Years", longevityYrs: 15, casualties: 9200, money: 2500000000, gdp: 21000000000 },
+            { country: "Mexico", region: "Latin America", parties: "Govt vs. Cartels", desc: "Militarized conflict between the federal government and powerful transnational drug cartels.", start: "Dec 2006", longevityText: "19 Years", longevityYrs: 19, casualties: 8000, money: 10200000000, gdp: 1400000000000 },
+            { country: "DR Congo", region: "Africa", parties: "Govt vs. M23 & ADF", desc: "Long-running instability in the resource-rich east involving government forces and rebel militias.", start: "Nov 1996", longevityText: "30 Years", longevityYrs: 30, casualties: 7200, money: 1100000000, gdp: 58000000000 },
+            { country: "Ethiopia", region: "Africa", parties: "Govt vs. Fano & OLA", desc: "Internal conflict between the federal government and regional militias following the Tigray war.", start: "Nov 2020", longevityText: "6 Years", longevityYrs: 6, casualties: 6200, money: 1800000000, gdp: 126000000000 },
+            { country: "Burkina Faso", region: "Africa", parties: "Govt vs. Jihadist Insurgents", desc: "Severe jihadist insurgency linked to Al-Qaeda and ISIS destabilizing the state apparatus.", start: "Aug 2015", longevityText: "11 Years", longevityYrs: 11, casualties: 5200, money: 950000000, gdp: 18000000000 },
+            { country: "Pakistan", region: "Asia", parties: "Govt vs. TTP & BLA", desc: "Border and internal security conflicts with the Pakistani Taliban (TTP) and Baloch separatists.", start: "June 2004", longevityText: "22 Years", longevityYrs: 22, casualties: 5100, money: 10800000000, gdp: 376000000000 },
+            { country: "Haiti", region: "Latin America", parties: "Govt vs. Gang Coalitions", desc: "Near-collapse of state authority amid violent turf wars by heavily armed gang coalitions.", start: "July 2018", longevityText: "8 Years", longevityYrs: 8, casualties: 4500, money: 280000000, gdp: 20000000000 },
+            { country: "Ecuador", region: "Latin America", parties: "Govt vs. Narco-Gangs", desc: "Recently declared internal armed conflict against powerful narco-trafficking syndicates.", start: "Jan 2024", longevityText: "2 Years", longevityYrs: 2, casualties: 3900, money: 2400000000, gdp: 115000000000 },
+            { country: "Mali", region: "Africa", parties: "Govt vs. Jihadists", desc: "Ongoing insurgency by Tuareg separatists and Islamist militants in the Sahel region.", start: "Jan 2012", longevityText: "14 Years", longevityYrs: 14, casualties: 3900, money: 1300000000, gdp: 18000000000 },
+            { country: "South Sudan", region: "Africa", parties: "Inter-ethnic/Political", desc: "Chronic inter-ethnic violence and political instability following independence.", start: "Dec 2013", longevityText: "12 Years", longevityYrs: 12, casualties: 3000, money: 700000000, gdp: 5000000000 },
+            { country: "Yemen", region: "Middle East", parties: "Govt vs. Houthi Rebels", desc: "Proxy conflict involving the internationally recognized government, Saudi coalition, and Houthis.", start: "Sept 2014", longevityText: "12 Years", longevityYrs: 12, casualties: 3000, money: 1900000000, gdp: 21000000000 },
+            { country: "Colombia", region: "Latin America", parties: "Govt vs. ELN/FARC", desc: "Longest-running civil conflict in the Americas against leftist guerrillas and right-wing paramilitaries.", start: "May 1964", longevityText: "62 Years", longevityYrs: 62, casualties: 2200, money: 11300000000, gdp: 343000000000 },
+            { country: "Russia", region: "Europe", parties: "Ukraine & Border Militias", desc: "Operations and border defense associated with the invasion of Ukraine.", start: "Feb 2022", longevityText: "4 Years", longevityYrs: 4, casualties: 2100, money: 270000000000, gdp: 2200000000000 },
+            { country: "Niger", region: "Africa", parties: "Govt vs. ISGS/Boko Haram", desc: "Counter-terrorism operations against Islamist militant groups operating in the Sahel.", start: "Feb 2015", longevityText: "11 Years", longevityYrs: 11, casualties: 2100, money: 450000000, gdp: 14000000000 },
+            { country: "Cameroon", region: "Africa", parties: "Govt vs. Boko Haram", desc: "Spillover violence from Boko Haram in the north and a separatist crisis in the Anglophone regions.", start: "May 2014", longevityText: "12 Years", longevityYrs: 12, casualties: 1600, money: 680000000, gdp: 44000000000 },
+            { country: "Afghanistan", region: "Asia", parties: "Taliban vs. NRF/ISIS-K", desc: "Ongoing low-level insurgency by resistance fronts and ISIS-K against Taliban rule.", start: "Aug 2021", longevityText: "5 Years", longevityYrs: 5, casualties: 1000, money: 800000000, gdp: 14000000000 },
+            { country: "CAR", region: "Africa", parties: "Govt vs. CPC Coalition", desc: "Fractured state dealing with the Coalition of Patriots for Change and armed rebel groups.", start: "Dec 2012", longevityText: "13 Years", longevityYrs: 13, casualties: 950, money: 180000000, gdp: 2500000000 },
+            { country: "Iran", region: "Middle East", parties: "U.S., Israel & Rebels", desc: "Regional escalation involving direct state conflict and proxy militant engagements.", start: "Feb 2026", longevityText: "2 Months", longevityYrs: 0.16, casualties: 15000, money: 50000000000, gdp: 388000000000 },
+            { country: "Mozambique", region: "Africa", parties: "Govt vs. ISIS-Moz", desc: "Islamist insurgency in the resource-rich northern Cabo Delgado province.", start: "Oct 2017", longevityText: "8 Years", longevityYrs: 8, casualties: 650, money: 420000000, gdp: 17000000000 },
+            { country: "Iraq", region: "Middle East", parties: "Govt vs. ISIS Remnants", desc: "Ongoing security operations against sleeper cells and remnants of the Islamic State.", start: "Jan 2014", longevityText: "12 Years", longevityYrs: 12, casualties: 600, money: 5200000000, gdp: 264000000000 },
+            { country: "Benin", region: "Africa", parties: "Govt vs. Jihadists", desc: "Northern border regions increasingly targeted by jihadist spillover from neighboring Sahel states.", start: "Dec 2021", longevityText: "4 Years", longevityYrs: 4, casualties: 440, money: 150000000, gdp: 17000000000 },
+            { country: "Bangladesh", region: "Asia", parties: "Govt vs. Islamist/Ethnic", desc: "Tensions and episodic violence involving political factions, ethnic groups, and border security.", start: "Dec 2022", longevityText: "3 Years", longevityYrs: 3, casualties: 360, money: 4300000000, gdp: 460000000000 },
+            { country: "Chad", region: "Africa", parties: "Govt vs. FACT/Boko Haram", desc: "Confrontations with rebel groups in the north and Boko Haram near Lake Chad.", start: "Apr 2021", longevityText: "5 Years", longevityYrs: 5, casualties: 320, money: 550000000, gdp: 12000000000 }
+        ];
+
+        let currentChart = null;
+        let geoChart = null;
+
+        // Formatter utilities
+        const formatMoney = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(num);
+        const formatNum = (num) => new Intl.NumberFormat('en-US').format(num);
+        const formatNumDec = (num) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(num);
+
+        // Pre-calculate derived metrics
+        conflictData.forEach(d => {
+            d.casualtiesDay = d.casualties / 365;
+            d.moneyDay = d.money / 365;
+            d.costPerLife = d.money / d.casualties;
+            d.pctGdp = (d.money / d.gdp) * 100;
+        });
+
+        function enterDashboard() {
+            document.getElementById('landing-page').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            updateVisualization();
+        }
+
+        function exitDashboard() {
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('landing-page').style.display = 'flex';
+        }
+
+        function updateVisualization() {
+            const regionFilter = document.getElementById('region-filter').value;
+            const metric = document.getElementById('metric-select').value;
+            let visual = document.getElementById('visual-select').value;
+            const container = document.getElementById('vis-container');
+
+            // Apply Regional Filter
+            let filteredData = conflictData.filter(d => regionFilter === 'All' || d.region === regionFilter);
+
+            // Clear previous UI
+            container.innerHTML = '';
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
+            }
+            if (geoChart) {
+                geoChart.clearChart();
+                geoChart = null;
+            }
+
+            // Force Bar chart if Timeline is selected and Pie is chosen (Map is fine for longevity)
+            if (metric === 'longevity' && visual === 'pie') {
+                visual = 'bar';
+                document.getElementById('visual-select').value = 'bar';
+            }
+
+            // Sorting based on selected metric
+            if (metric === 'casualties') filteredData.sort((a, b) => b.casualties - a.casualties);
+            else if (metric === 'casualties_day') filteredData.sort((a, b) => b.casualtiesDay - a.casualtiesDay);
+            else if (metric === 'money') filteredData.sort((a, b) => b.money - a.money);
+            else if (metric === 'money_day') filteredData.sort((a, b) => b.moneyDay - a.moneyDay);
+            else if (metric === 'pct_gdp') filteredData.sort((a, b) => b.pctGdp - a.pctGdp);
+            else if (metric === 'cost_per_life') filteredData.sort((a, b) => b.costPerLife - a.costPerLife);
+            else if (metric === 'longevity') filteredData.sort((a, b) => b.longevityYrs - a.longevityYrs);
+
+            if (visual === 'table') {
+                renderTable(filteredData, metric, container);
+            } else if (visual === 'map') {
+                renderMap(filteredData, metric, container);
+            } else {
+                renderChart(filteredData, metric, visual, container);
+            }
+        }
+
+        function renderTable(data, metric, container) {
+            const table = document.createElement('table');
+            
+            let metricHeader = '';
+            if (metric === 'casualties') metricHeader = 'Est. Annual Casualties';
+            if (metric === 'casualties_day') metricHeader = 'Est. Casualties Per Day';
+            if (metric === 'money') metricHeader = 'Est. Annual Money Spent (USD)';
+            if (metric === 'money_day') metricHeader = 'Est. Money Spent Per Day (USD)';
+            if (metric === 'pct_gdp') metricHeader = 'Defense Spend (% of GDP)';
+            if (metric === 'cost_per_life') metricHeader = 'Cost Spent Per Casualty (USD)';
+            if (metric === 'longevity') metricHeader = 'Longevity';
+
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Country</th>
+                        <th>Opposing Parties (Hover for Details)</th>
+                        <th>Region</th>
+                        <th>${metricHeader}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(d => {
+                        let displayValue = '';
+                        if (metric === 'casualties') displayValue = formatNum(d.casualties);
+                        if (metric === 'casualties_day') displayValue = formatNumDec(d.casualtiesDay);
+                        if (metric === 'money') displayValue = formatMoney(d.money);
+                        if (metric === 'money_day') displayValue = formatMoney(d.moneyDay);
+                        if (metric === 'pct_gdp') displayValue = d.pctGdp.toFixed(2) + '%';
+                        if (metric === 'cost_per_life') displayValue = formatMoney(d.costPerLife);
+                        if (metric === 'longevity') displayValue = d.longevityText;
+
+                        return `
+                            <tr>
+                                <td>${d.country}</td>
+                                <td>
+                                    <div class="tooltip">${d.parties}
+                                      <span class="tooltiptext">${d.desc}</span>
+                                    </div>
+                                </td>
+                                <td>${d.region}</td>
+                                <td>${displayValue}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            `;
+            container.appendChild(table);
+        }
+
+        function renderChart(data, metric, type, container) {
+            container.innerHTML = '<div id="chart-container"><canvas id="dataChart"></canvas></div>';
+            const ctx = document.getElementById('dataChart').getContext('2d');
+
+            let labels = data.map(d => d.country);
+            let datasetValues = [];
+            let labelTitle = '';
+            let isHorizontal = false;
+
+            if (metric === 'casualties') {
+                datasetValues = data.map(d => d.casualties);
+                labelTitle = 'Estimated Annual Casualties';
+            } else if (metric === 'casualties_day') {
+                datasetValues = data.map(d => d.casualtiesDay);
+                labelTitle = 'Estimated Casualties Per Day';
+            } else if (metric === 'money') {
+                datasetValues = data.map(d => d.money);
+                labelTitle = 'Estimated Annual Money Spent (USD)';
+            } else if (metric === 'money_day') {
+                datasetValues = data.map(d => d.moneyDay);
+                labelTitle = 'Estimated Money Spent Per Day (USD)';
+            } else if (metric === 'pct_gdp') {
+                datasetValues = data.map(d => d.pctGdp);
+                labelTitle = 'Defense Spend (% of GDP)';
+            } else if (metric === 'cost_per_life') {
+                datasetValues = data.map(d => d.costPerLife);
+                labelTitle = 'Financial Cost per Casualty (USD)';
+            } else if (metric === 'longevity') {
+                datasetValues = data.map(d => d.longevityYrs);
+                labelTitle = 'Years Active';
+                isHorizontal = true;
+            }
+
+            const bgColors = data.map((_, i) => `hsla(0, 40%, ${40 + (i * 1.5)}%, 0.7)`);
+            const borderColors = data.map((_, i) => `hsla(0, 40%, ${40 + (i * 1.5)}%, 1)`);
+
+            const config = {
+                type: type === 'bar' ? 'bar' : 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: labelTitle,
+                        data: datasetValues,
+                        backgroundColor: bgColors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: isHorizontal ? 'y' : 'x',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: type === 'pie', position: 'right', labels: { color: '#e0e0e0' } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw;
+                                    if (metric === 'casualties') return formatNum(val) + ' Casualties';
+                                    if (metric === 'casualties_day') return formatNumDec(val) + ' Casualties / Day';
+                                    if (metric === 'money' || metric === 'cost_per_life' || metric === 'money_day') return formatMoney(val);
+                                    if (metric === 'pct_gdp') return val.toFixed(2) + '% of GDP';
+                                    if (metric === 'longevity') return val.toFixed(1) + ' Years';
+                                }
+                            }
+                        }
+                    },
+                    scales: type === 'bar' ? {
+                        [isHorizontal ? 'x' : 'y']: { 
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#888',
+                                callback: function(value) {
+                                    if (metric === 'money' || metric === 'cost_per_life' || metric === 'money_day') {
+                                        if (value >= 1e9) return '$' + (value / 1e9).toFixed(1) + 'B';
+                                        if (value >= 1e6) return '$' + (value / 1e6).toFixed(1) + 'M';
+                                        return formatMoney(value);
+                                    }
+                                    if (metric === 'pct_gdp') return value + '%';
+                                    if (metric === 'longevity') return value + ' Yrs';
+                                    return formatNum(value);
+                                }
+                            },
+                            grid: { color: '#333' }
+                        },
+                        [isHorizontal ? 'y' : 'x']: { 
+                            ticks: { color: '#888', maxRotation: isHorizontal ? 0 : 45, minRotation: isHorizontal ? 0 : 45 },
+                            grid: { display: false }
+                        }
+                    } : {}
+                }
+            };
+
+            currentChart = new Chart(ctx, config);
+        }
+
+        // Render Geographic Heatmap via Google GeoCharts
+        function renderMap(data, metric, container) {
+            container.innerHTML = '<div id="map-container"></div>';
+
+            if (!google || !google.visualization) {
+                container.innerHTML = '<p style="color:red; text-align:center;">Google Charts API failed to load or is still initializing. Please try again.</p>';
+                return;
+            }
+
+            const dataTable = new google.visualization.DataTable();
+            dataTable.addColumn('string', 'Country');
+            
+            let labelTitle = '';
+            let formatOptions = { fractionDigits: 0 };
+
+            if (metric === 'casualties') {
+                labelTitle = 'Annual Casualties';
+            } else if (metric === 'casualties_day') {
+                labelTitle = 'Casualties Per Day';
+                formatOptions = { fractionDigits: 1 };
+            } else if (metric === 'money') {
+                labelTitle = 'Annual Budget';
+                formatOptions = { prefix: '$', fractionDigits: 0 };
+            } else if (metric === 'money_day') {
+                labelTitle = 'Daily Spend';
+                formatOptions = { prefix: '$', fractionDigits: 0 };
+            } else if (metric === 'pct_gdp') {
+                labelTitle = '% of GDP';
+                formatOptions = { suffix: '%', fractionDigits: 2 };
+            } else if (metric === 'cost_per_life') {
+                labelTitle = 'Cost Per Life';
+                formatOptions = { prefix: '$', fractionDigits: 0 };
+            } else if (metric === 'longevity') {
+                labelTitle = 'Years Active';
+                formatOptions = { suffix: ' Yrs', fractionDigits: 1 };
+            }
+
+            dataTable.addColumn('number', labelTitle);
+
+            // Geographic naming overrides for Google Charts recognition
+            const geoMapNames = {
+                "Palestine/Gaza": "PS",
+                "DR Congo": "CD",
+                "CAR": "CF"
+            };
+
+            data.forEach(d => {
+                let val = 0;
+                if (metric === 'casualties') val = d.casualties;
+                else if (metric === 'casualties_day') val = d.casualtiesDay;
+                else if (metric === 'money') val = d.money;
+                else if (metric === 'money_day') val = d.moneyDay;
+                else if (metric === 'pct_gdp') val = d.pctGdp;
+                else if (metric === 'cost_per_life') val = d.costPerLife;
+                else if (metric === 'longevity') val = d.longevityYrs;
+
+                let countryCode = geoMapNames[d.country] || d.country;
+                dataTable.addRow([countryCode, val]);
+            });
+
+            // Apply specific number formatting to the tooltip
+            const formatter = new google.visualization.NumberFormat(formatOptions);
+            formatter.format(dataTable, 1);
+
+            const options = {
+                backgroundColor: '#1a1a1a',          // Matches our dark panel background
+                datalessRegionColor: '#2a2a2a',      // Slightly lighter than bg for non-data countries
+                defaultColor: '#444',
+                colorAxis: {colors: ['#4a2222', '#ff4d4d']}, // Dark red to bright red gradient
+                legend: {textStyle: {color: '#e0e0e0'}},
+                tooltip: {textStyle: {color: '#333'}, showColorCode: true}
+            };
+
+            geoChart = new google.visualization.GeoChart(document.getElementById('map-container'));
+            geoChart.draw(dataTable, options);
+        }
+
+        // CSV Export Function
+        function exportToCSV() {
+            const headers = [
+                "Country",
+                "Region",
+                "Opposing Parties",
+                "Description",
+                "Start Date",
+                "Longevity (Years)",
+                "Estimated Annual Casualties",
+                "Estimated Casualties Per Day",
+                "Estimated Annual Money Spent (USD)",
+                "Estimated Money Spent Per Day (USD)",
+                "Host Nation GDP (USD)",
+                "Defense Spend (% of GDP)",
+                "Cost Spent Per Casualty (USD)"
+            ];
+
+            let csvContent = headers.join(",") + "\\n";
+
+            // Export currently filtered data
+            const regionFilter = document.getElementById('region-filter').value;
+            const dataToExport = conflictData.filter(d => regionFilter === 'All' || d.region === regionFilter);
+
+            dataToExport.forEach(d => {
+                const row = [
+                    `"${d.country}"`,
+                    `"${d.region}"`,
+                    `"${d.parties}"`,
+                    `"${d.desc.replace(/"/g, '""')}"`,
+                    `"${d.start}"`,
+                    d.longevityYrs,
+                    d.casualties,
+                    d.casualtiesDay.toFixed(2),
+                    d.money,
+                    d.moneyDay.toFixed(2),
+                    d.gdp,
+                    d.pctGdp.toFixed(4),
+                    d.costPerLife.toFixed(2)
+                ];
+                csvContent += row.join(",") + "\\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", `global_conflict_data_${regionFilter.replace(/\s+/g, '_')}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
